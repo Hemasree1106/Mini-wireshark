@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+from packet_analyzer import capture_packets
 
 # ---------------- PAGE CONFIG ----------------
 
