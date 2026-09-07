@@ -1,11 +1,7 @@
 import streamlit as st
 import pandas as pd
-from packet_analyzer import capture_packets
+from packet_analyzer import capture_packets, get_interfaces
 
-
-# =========================================================
-# PAGE CONFIGURATION
-# =========================================================
 
 st.set_page_config(
     page_title="Mini Wireshark",
@@ -35,13 +31,11 @@ st.markdown("""
 .main-title {
     font-size: 38px;
     font-weight: 800;
-    margin-bottom: 0;
 }
 
 .subtitle {
     color: #9ca3af;
     font-size: 15px;
-    margin-top: 4px;
 }
 
 .status {
@@ -103,9 +97,6 @@ st.markdown("""
 # SESSION STATE
 # =========================================================
 
-if "capturing" not in st.session_state:
-    st.session_state.capturing = False
-
 if "captured_packets" not in st.session_state:
     st.session_state.captured_packets = []
 
@@ -123,14 +114,14 @@ with st.sidebar:
 
     st.markdown("### 📡 Capture Settings")
 
+    # Get REAL interfaces from Scapy
+    interfaces = get_interfaces()
+
+    interface_options = ["Auto Detect"] + interfaces
+
     interface = st.selectbox(
         "Network Interface",
-        [
-            "Auto Detect",
-            "Wi-Fi",
-            "Ethernet",
-            "Loopback"
-        ]
+        interface_options
     )
 
     packet_limit = st.slider(
@@ -156,8 +147,6 @@ with st.sidebar:
         "▶️ Start Capture",
         use_container_width=True
     ):
-
-        st.session_state.capturing = True
 
         with st.spinner("Capturing network packets..."):
 
@@ -186,28 +175,17 @@ with st.sidebar:
                     f"Packet capture failed: {error}"
                 )
 
-        st.session_state.capturing = False
-
-    # -----------------------------------------------------
-    # STOP CAPTURE
-    # -----------------------------------------------------
-
     if st.button(
-        "⏹️ Stop Capture",
+        "🗑️ Clear Packets",
         use_container_width=True
     ):
 
-        st.session_state.capturing = False
+        st.session_state.captured_packets = []
 
-        st.warning(
-            "Capture stopped."
-        )
+        st.success("Packet data cleared.")
+
 
     st.divider()
-
-    # -----------------------------------------------------
-    # SYSTEM STATUS
-    # -----------------------------------------------------
 
     st.markdown("### ⚙️ System Status")
 
@@ -224,9 +202,7 @@ header_left, header_right = st.columns([4, 1])
 with header_left:
 
     st.markdown(
-        '<div class="main-title">'
-        '🛡️ Mini Wireshark'
-        '</div>',
+        '<div class="main-title">🛡️ Mini Wireshark</div>',
         unsafe_allow_html=True
     )
 
@@ -240,9 +216,7 @@ with header_left:
 with header_right:
 
     st.markdown(
-        '<div class="status">'
-        '● SYSTEM ONLINE'
-        '</div>',
+        '<div class="status">● SYSTEM ONLINE</div>',
         unsafe_allow_html=True
     )
 
@@ -251,11 +225,10 @@ st.write("")
 
 
 # =========================================================
-# PROCESS CAPTURED PACKETS
+# PACKET DATA
 # =========================================================
 
 packets = st.session_state.captured_packets
-
 
 if packets:
 
@@ -277,7 +250,7 @@ else:
 
 
 # =========================================================
-# FILTER PACKETS
+# FILTER
 # =========================================================
 
 if not packet_df.empty and protocol_filter:
@@ -299,42 +272,29 @@ total_packets = len(packet_df)
 
 tcp_packets = (
     len(packet_df[packet_df["protocol"] == "TCP"])
-    if not packet_df.empty
-    else 0
+    if not packet_df.empty else 0
 )
 
 udp_packets = (
     len(packet_df[packet_df["protocol"] == "UDP"])
-    if not packet_df.empty
-    else 0
+    if not packet_df.empty else 0
 )
 
-http_packets = 0
-
-if not packet_df.empty:
-
-    http_packets = len(
-        packet_df[
-            packet_df["protocol"] == "HTTP"
-        ]
-    )
+http_packets = (
+    len(packet_df[packet_df["protocol"] == "HTTP"])
+    if not packet_df.empty else 0
+)
 
 
 c1, c2, c3, c4 = st.columns(4)
 
 
 with c1:
-
     st.markdown(
         f"""
         <div class="metric-card">
-            <div class="metric-title">
-                📦 TOTAL PACKETS
-            </div>
-
-            <div class="metric-value">
-                {total_packets:,}
-            </div>
+            <div class="metric-title">📦 TOTAL PACKETS</div>
+            <div class="metric-value">{total_packets:,}</div>
         </div>
         """,
         unsafe_allow_html=True
@@ -342,17 +302,11 @@ with c1:
 
 
 with c2:
-
     st.markdown(
         f"""
         <div class="metric-card">
-            <div class="metric-title">
-                🔵 TCP TRAFFIC
-            </div>
-
-            <div class="metric-value">
-                {tcp_packets:,}
-            </div>
+            <div class="metric-title">🔵 TCP TRAFFIC</div>
+            <div class="metric-value">{tcp_packets:,}</div>
         </div>
         """,
         unsafe_allow_html=True
@@ -360,17 +314,11 @@ with c2:
 
 
 with c3:
-
     st.markdown(
         f"""
         <div class="metric-card">
-            <div class="metric-title">
-                🟣 UDP TRAFFIC
-            </div>
-
-            <div class="metric-value">
-                {udp_packets:,}
-            </div>
+            <div class="metric-title">🟣 UDP TRAFFIC</div>
+            <div class="metric-value">{udp_packets:,}</div>
         </div>
         """,
         unsafe_allow_html=True
@@ -378,17 +326,11 @@ with c3:
 
 
 with c4:
-
     st.markdown(
         f"""
         <div class="metric-card">
-            <div class="metric-title">
-                🌐 HTTP TRAFFIC
-            </div>
-
-            <div class="metric-value">
-                {http_packets:,}
-            </div>
+            <div class="metric-title">🌐 HTTP TRAFFIC</div>
+            <div class="metric-value">{http_packets:,}</div>
         </div>
         """,
         unsafe_allow_html=True
@@ -400,12 +342,9 @@ with c4:
 # =========================================================
 
 st.markdown(
-    '<div class="section-title">'
-    '📈 Network Traffic'
-    '</div>',
+    '<div class="section-title">📈 Network Traffic</div>',
     unsafe_allow_html=True
 )
-
 
 if not packet_df.empty:
 
@@ -414,9 +353,8 @@ if not packet_df.empty:
         .groupby("time")
         .size()
         .reset_index(name="Packets")
+        .set_index("time")
     )
-
-    traffic = traffic.set_index("time")
 
     st.line_chart(
         traffic,
@@ -426,27 +364,21 @@ if not packet_df.empty:
 else:
 
     st.info(
-        "Start packet capture to display live network traffic."
+        "Start packet capture to display network traffic."
     )
 
 
 # =========================================================
-# PACKET INSPECTOR + ALERTS
+# PACKET INSPECTOR + SECURITY ALERTS
 # =========================================================
 
 left, right = st.columns([2.2, 1])
 
 
-# =========================================================
-# PACKET INSPECTOR
-# =========================================================
-
 with left:
 
     st.markdown(
-        '<div class="section-title">'
-        '🔍 Packet Inspector'
-        '</div>',
+        '<div class="section-title">🔍 Packet Inspector</div>',
         unsafe_allow_html=True
     )
 
@@ -473,31 +405,21 @@ with left:
     else:
 
         st.info(
-            "No packets available. "
-            "Start a capture to inspect packets."
+            "No packets available. Start a capture."
         )
 
-
-# =========================================================
-# SECURITY ALERTS
-# =========================================================
 
 with right:
 
     st.markdown(
-        '<div class="section-title">'
-        '⚠️ Security Alerts'
-        '</div>',
+        '<div class="section-title">⚠️ Security Alerts</div>',
         unsafe_allow_html=True
     )
 
-    http_detected = False
-
-    if not packet_df.empty:
-
-        http_detected = (
-            "HTTP" in packet_df["protocol"].values
-        )
+    http_detected = (
+        not packet_df.empty
+        and "HTTP" in packet_df["protocol"].values
+    )
 
     if http_detected:
 
@@ -514,32 +436,29 @@ with right:
             unsafe_allow_html=True
         )
 
-    if not packet_df.empty:
+    large_packets = (
+        packet_df[packet_df["size"] > 1500]
+        if not packet_df.empty else pd.DataFrame()
+    )
 
-        large_packets = packet_df[
-            packet_df["size"] > 1500
-        ]
+    if not large_packets.empty:
 
-        if not large_packets.empty:
-
-            st.markdown(
-                """
-                <div class="alert">
-                    🟠 <b>MEDIUM</b><br>
-                    Large packet detected<br>
-                    <small>
-                    Packet size exceeds 1500 bytes.
-                    </small>
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
-
-    if not http_detected and packet_df.empty:
-
-        st.info(
-            "No security alerts yet."
+        st.markdown(
+            """
+            <div class="alert">
+                🟠 <b>MEDIUM</b><br>
+                Large packet detected<br>
+                <small>
+                Packet size exceeds 1500 bytes.
+                </small>
+            </div>
+            """,
+            unsafe_allow_html=True
         )
+
+    if not http_detected and large_packets.empty:
+
+        st.info("No security alerts detected.")
 
 
 # =========================================================
@@ -549,16 +468,10 @@ with right:
 analytics1, analytics2 = st.columns(2)
 
 
-# =========================================================
-# PROTOCOL DISTRIBUTION
-# =========================================================
-
 with analytics1:
 
     st.markdown(
-        '<div class="section-title">'
-        '📊 Protocol Distribution'
-        '</div>',
+        '<div class="section-title">📊 Protocol Distribution</div>',
         unsafe_allow_html=True
     )
 
@@ -577,22 +490,13 @@ with analytics1:
 
     else:
 
-        st.info(
-            "Protocol statistics will appear "
-            "after packet capture."
-        )
+        st.info("Protocol statistics will appear after capture.")
 
-
-# =========================================================
-# TOP NETWORK ENDPOINTS
-# =========================================================
 
 with analytics2:
 
     st.markdown(
-        '<div class="section-title">'
-        '🌐 Top Network Endpoints'
-        '</div>',
+        '<div class="section-title">🌐 Top Network Endpoints</div>',
         unsafe_allow_html=True
     )
 
@@ -614,10 +518,7 @@ with analytics2:
 
     else:
 
-        st.info(
-            "Network endpoints will appear "
-            "after packet capture."
-        )
+        st.info("Network endpoints will appear after capture.")
 
 
 # =========================================================
@@ -627,14 +528,11 @@ with analytics2:
 st.markdown(
     """
     <div class="footer">
-
         Mini Wireshark • Python + Scapy + Streamlit
-
         <br>
-
         Network monitoring and packet analysis platform
-
     </div>
     """,
     unsafe_allow_html=True
 )
+
