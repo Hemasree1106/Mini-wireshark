@@ -756,16 +756,6 @@ with analytics2:
 # =========================================================
 
 st.markdown(
-    """
-    <div class="footer">
-
-        Mini Wireshark • Python + Scapy + Streamlit
-
-        <br>
-
-        Network monitoring and packet analysis platform
-
-    </div>
-    """,
-    unsafe_allow_html=True
+    "Mini Wireshark • Python + Scapy + Streamlit\n\n"
+    "Network monitoring and packet analysis platform"
 )
